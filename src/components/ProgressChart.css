@@ -1,0 +1,111 @@
+.progress-page { display: flex; flex-direction: column; gap: 20px; }
+
+.progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.progress-heading {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--on-background);
+  letter-spacing: -0.3px;
+}
+
+.progress-sub {
+  font-size: 13px;
+  color: var(--on-surface-variant);
+  margin-top: 3px;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--surface-container);
+  padding: 4px;
+  border-radius: var(--r-md);
+}
+
+.view-tab {
+  padding: 6px 16px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--on-surface-variant);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.view-tab:hover  { color: var(--on-surface); background: var(--surface-container-high); }
+.view-tab.active { color: var(--on-background); background: var(--surface-container-highest); font-weight: 600; }
+
+/* Stat cards */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  background: var(--surface-container-low);
+  border-radius: var(--r-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 0.2s;
+}
+
+.stat-card:hover { background: var(--surface-container); }
+
+.sc-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.sc-label {
+  font-size: 12px;
+  color: var(--on-surface-variant);
+}
+
+/* Chart */
+.chart-card {
+  background: var(--surface-container-low);
+  border-radius: var(--r-xl);
+  padding: 24px 20px 16px;
+}
+
+/* Tooltip */
+.chart-tooltip {
+  background: var(--surface-container-highest);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  box-shadow: var(--shadow-lg);
+}
+
+.tt-label {
+  font-size: 11px;
+  color: var(--on-surface-variant);
+  margin-bottom: 7px;
+}
+
+.tt-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+
+.tt-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.tt-name { font-size: 12px; color: var(--on-surface-variant); flex: 1; }
+.tt-val  { font-size: 13px; font-weight: 700; color: var(--on-background); }

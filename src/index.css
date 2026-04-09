@@ -1,0 +1,109 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* ── Surface hierarchy (Stitch "Sonic Atelier") ─────────────── */
+  --surface:                  #0a0e14;
+  --surface-container-lowest: #000000;
+  --surface-container-low:    #0f141a;
+  --surface-container:        #151a21;
+  --surface-container-high:   #1b2028;
+  --surface-container-highest:#20262f;
+  --surface-variant:          #20262f;
+  --surface-bright:           #262c36;
+
+  /* ── Primary — Electric Blue ─────────────────────────────────── */
+  --primary:           #6dddff;
+  --primary-dim:       #00c3eb;
+  --primary-container: #00d2fd;
+  --primary-fixed:     #00d2fd;
+  --primary-fixed-dim: #00c3eb;
+  --primary-light:     rgba(109, 221, 255, 0.12);
+  --primary-glow:      rgba(109, 221, 255, 0.25);
+
+  /* ── Tertiary — Mint Green ───────────────────────────────────── */
+  --tertiary:           #bbffb3;
+  --tertiary-dim:       #83e881;
+  --tertiary-container: #91f78e;
+  --tertiary-light:     rgba(187, 255, 179, 0.12);
+
+  /* ── Error / Warning ─────────────────────────────────────────── */
+  --error:           #ff716c;
+  --error-dim:       #d7383b;
+  --error-container: #9f0519;
+  --error-light:     rgba(255, 113, 108, 0.12);
+
+  /* ── Recording orange (live indicator only) ──────────────────── */
+  --hot:       #F97316;
+  --hot-light: rgba(249, 115, 22, 0.12);
+  --hot-glow:  rgba(249, 115, 22, 0.28);
+
+  /* ── Text ────────────────────────────────────────────────────── */
+  --on-background:      #f1f3fc;
+  --on-surface:         #f1f3fc;
+  --on-surface-variant: #a8abb3;
+  --on-primary-fixed:   #002c37;
+  --on-primary:         #004c5e;
+  --outline:            #72757d;
+  --outline-variant:    #44484f;
+
+  /* Legacy aliases (used by existing components) */
+  --text-bright: var(--on-background);
+  --text-body:   var(--on-surface-variant);
+  --text-muted:  #72757d;
+  --text-dim:    #44484f;
+  --bg-page:     var(--surface);
+  --bg-card:     var(--surface-container-low);
+  --bg-surface:  var(--surface-container);
+  --bg-raised:   var(--surface-container-high);
+  --bg-hover:    var(--surface-container-highest);
+  --border:      rgba(68, 72, 79, 0.4);
+  --border-mid:  rgba(68, 72, 79, 0.7);
+  --success:       var(--tertiary);
+  --success-light: var(--tertiary-light);
+  --caution:       #FCD34D;
+  --caution-light: rgba(252, 211, 77, 0.12);
+  --danger:        var(--error);
+  --danger-light:  var(--error-light);
+  --wave: var(--primary);
+
+  /* ── Typography ──────────────────────────────────────────────── */
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body:    'Inter', sans-serif;
+
+  /* ── Shadows (tonal, not black) ──────────────────────────────── */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.6);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.7);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.8);
+
+  /* ── Radii ───────────────────────────────────────────────────── */
+  --r-sm:   8px;
+  --r-md:   12px;
+  --r-lg:   16px;
+  --r-xl:   20px;
+  --r-pill: 9999px;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--surface);
+  color: var(--on-surface-variant);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 4px; }
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-size: 20px;
+  line-height: 1;
+  user-select: none;
+}
