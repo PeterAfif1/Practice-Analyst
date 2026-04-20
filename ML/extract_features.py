@@ -1,33 +1,58 @@
 import librosa
 import numpy as np
 import os
+import torch
+from transformers import Wav2Vec2Processor, Wav2Vec2Model
+
+
+_processor = None
+_model = None
+
+
+def _get_model():
+    global _processor, _model
+    if _processor is None:
+        print("loading pretrained Wav2Vec2 (first time only, ~95MB)...")
+        _processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
+        _model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base")
+        _model.eval()
+    return _processor, _model
+
+
+def _extract_embeddings(y, sr):
+
+    processor, model = _get_model()
+
+    if sr != 16000:
+        y = librosa.resample(y, orig_sr=sr, target_sr=16000)
+        sr = 16000
+
+    inputs = processor(y, sampling_rate=sr, return_tensors="pt", padding=True)
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    embeddings = outputs.last_hidden_state.mean(dim=1).squeeze().numpy()
+    return embeddings
 
 
 def extract_features_from_file(audio_file):
+    y, sr = librosa.load(audio_file, sr=16000)
+    return _extract_embeddings(y, sr)
+
+
+def extract_tempo(audio_file):
     y, sr = librosa.load(audio_file, sr=22050)
-
-    mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-
-    mfccs_mean = mfccs.mean(axis=1)
-
-    mfccs_std = mfccs.std(axis=1)
-
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-    tempo = float(np.asarray(tempo).flatten()[0])
+    return float(np.asarray(tempo).flatten()[0])
 
-    spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr).mean()
 
-    zcr = librosa.feature.zero_crossing_rate(y).mean()
-
-    features = np.concatenate([
-        mfccs_mean,
-        mfccs_std,
-        np.array([tempo]),
-        np.array([float(np.asarray(spectral_centroid).flatten()[0])]),
-        np.array([float(np.asarray(zcr).flatten()[0])])
-    ])
-
-    return features
+def chunk_audio(y, sr, chunk_duration=3):
+    chunk_size = sr * chunk_duration
+    chunks = []
+    for start in range(0, len(y) - chunk_size, chunk_size):
+        chunks.append(y[start:start + chunk_size])
+    return chunks
 
 
 def load_dataset():
@@ -56,16 +81,22 @@ def load_dataset():
                 filepath = os.path.join(folder_path, filename)
 
                 try:
-                    features = extract_features_from_file(filepath)
+                    audio, sr = librosa.load(filepath, sr=16000)
 
-                    X.append(features)
-                    y.append(label)
+                    # Split into 1-second chunks
+                    chunks = chunk_audio(audio, sr, chunk_duration=1)
+
+                    print(f"  {filename} → {len(chunks)} chunks")
+
+                    for chunk in chunks:
+                        features = _extract_embeddings(chunk, sr)
+                        X.append(features)
+                        y.append(label)
 
                 except Exception as e:
                     print(f"error processing {filename}: {e}")
                     import traceback
                     traceback.print_exc()
-                    break
 
     X = np.array(X)
     y = np.array(y)
@@ -79,6 +110,6 @@ def load_dataset():
 
 if __name__ == "__main__":
     X, y = load_dataset()
-    print("\nsample feature vector:")
-    print(X[0])
+    print("\nsample embedding (first 10 dims):")
+    print(X[0][:10])
     print("\nlabel:", y[0])

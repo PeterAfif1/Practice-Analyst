@@ -34,7 +34,8 @@ def train():
     print("\ntraining Random Forest...")
     model = RandomForestClassifier(
         n_estimators=100,
-        random_state=42
+        random_state=42,
+        class_weight='balanced'
         )
 
     model.fit(X_train, y_train)

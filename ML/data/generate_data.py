@@ -133,7 +133,7 @@ def generate_dataset():
     for i in range(NUM_SAMPLES):
         # generate a drum hit with a random timing offset
         # offset between 0.05 and 0.2 seconds = noticeably off rhythm
-        timing_offset = int(np.random.uniform(0.05, 0.2))
+        timing_offset = np.random.uniform(0.05, 0.2)
         wave = generate_drum_hit(DURATION, SAMPLE_RATE, timing_offset)
         save_wav(f'data/off_rhythm/off_rhythm_{i}.wav', wave, SAMPLE_RATE)
 
