@@ -1,3 +1,4 @@
+import sys
 import librosa
 import numpy as np
 import os
@@ -12,7 +13,7 @@ _model = None
 def _get_model():
     global _processor, _model
     if _processor is None:
-        print("loading pretrained Wav2Vec2 (first time only, ~95MB)...")
+        sys.stderr.write("loading pretrained Wav2Vec2 (first time only, ~95MB)...\n")
         _processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
         _model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base")
         _model.eval()
