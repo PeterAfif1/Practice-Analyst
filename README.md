@@ -21,7 +21,7 @@ errors in real-time using a trained machine learning model.
 ```
 cd backend
 npm install
-npm run dev
+npm start
 ```
 
 **ML Pipeline**
@@ -33,9 +33,8 @@ python analyze.py
 
 **Frontend**
 ```
-cd frontend
 npm install
-npm run dev
+npm start
 ```
 
 > Requires a `.env` file with `DATABASE_URL` in the backend folder.
