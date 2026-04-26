@@ -115,12 +115,8 @@ export default function App() {
     try {
       // POST the audio to the backend. The backend runs Python analysis,
       // saves to DB, and returns the ML result.
-      const mlData = await analyzeAudio(blob, userId);
-
-      // Map the raw ML output to the metric shape the UI components expect
-      setMetrics(transformMLResult(mlData));
-      setFeedback(generateFeedbackFromPrediction(mlData.prediction));
-      setAnalysisStage('done');
+      // UI state (metrics, feedback, stage) is updated by the WebSocket handler below.
+      await analyzeAudio(blob, userId);
 
       // Refresh the history list so the new session appears immediately
       fetchHistory(userId).then(rows => {
