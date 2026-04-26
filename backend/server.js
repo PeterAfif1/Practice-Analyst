@@ -20,6 +20,8 @@ import dotenv      from 'dotenv';           // loads .env variables into process
 import ffmpeg      from 'fluent-ffmpeg';   // Node.js wrapper around the FFmpeg binary
 import ffmpegPath  from 'ffmpeg-static';   // path to the bundled FFmpeg binary (no system install needed)
 import pool, { createTables } from './db.js'; // our PostgreSQL pool + table setup helper
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Tell fluent-ffmpeg where to find the FFmpeg binary that came with ffmpeg-static
 ffmpeg.setFfmpegPath(ffmpegPath);
