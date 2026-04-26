@@ -209,7 +209,7 @@ app.post('/analyze', (req, res) => {
 
     // exec() spawns a child process, runs the command, and buffers its output.
     // The callback fires when the process exits.
-    exec(command, async (execErr, stdout, stderr) => {
+    exec(command, { cwd: path.join(__dirname) }, async (execErr, stdout, stderr) => {
 
       // If the Python process exited with a non-zero code, something went wrong.
       if (execErr) {
