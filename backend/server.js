@@ -31,7 +31,7 @@ dotenv.config(); // must run before reading any process.env values
 const PORT        = process.env.PORT        || 4000;
 const PYTHON_PATH = process.env.PYTHON_PATH || '../.venv/Scripts/python.exe';
 const ML_SCRIPT   = process.env.ML_SCRIPT_PATH || '../ML/analyze.py';
-const UPLOAD_DIR  = process.env.UPLOAD_DIR  || './uploads';
+const UPLOAD_DIR  = process.env.UPLOAD_DIR  || path.join(__dirname, 'uploads');
 
 // Create the uploads folder if it doesn't exist yet.
 // { recursive: true } means it won't throw if the folder is already there.
