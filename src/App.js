@@ -68,6 +68,8 @@ export default function App() {
   useEffect(() => {
     const ws = connectWebSocket(userId, (mlData) => {
       // This fires when the backend finishes ML analysis and pushes the result.
+      // Clear the timeout so the "timed out" error doesn't fire after results arrive.
+      clearTimeout(analysisTimeoutRef.current);
       // Update metrics and mark the stage as done so the UI renders the results.
       setMetrics(transformMLResult(mlData));
       setFeedback(generateFeedbackFromPrediction(mlData.prediction));
@@ -82,6 +84,7 @@ export default function App() {
   const timerRef           = useRef(null);
   const audioChunksRef     = useRef([]);   // accumulates recorded audio chunks
   const mediaRecorderRef   = useRef(null); // holds the MediaRecorder instance
+  const analysisTimeoutRef = useRef(null); // holds the WebSocket result timeout ID
 
   // ── stopRecording ────────────────────────────────────────────────────────────
   // Stops the microphone, collects the recorded audio blob, and sends it
@@ -117,6 +120,12 @@ export default function App() {
       // saves to DB, and returns the ML result.
       // UI state (metrics, feedback, stage) is updated by the WebSocket handler below.
       await analyzeAudio(blob, userId);
+
+      // Start a 30-second timeout. If the WebSocket result never arrives, reset the UI.
+      analysisTimeoutRef.current = setTimeout(() => {
+        setAnalysisError('Analysis timed out. Please try again.');
+        setAnalysisStage('idle');
+      }, 30000);
 
       // Refresh the history list so the new session appears immediately
       fetchHistory(userId).then(rows => {
