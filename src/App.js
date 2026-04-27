@@ -25,7 +25,7 @@ export default function App() {
   const [sessionTime, setSessionTime]     = useState(0);
   const [metrics, setMetrics]             = useState(null);
   const [feedback, setFeedback]           = useState([]);
-  const [audioData, setAudioData]         = useState(new Float32Array(256));
+  const audioDataRef                       = useRef(new Float32Array(256));
   const [activeTab, setActiveTab]         = useState('dashboard');
   const [analysisStage, setAnalysisStage] = useState('idle');
   const [analysisError, setAnalysisError] = useState(null);
@@ -172,7 +172,7 @@ export default function App() {
       const buf = new Float32Array(analyser.frequencyBinCount);
       const tick = () => {
         analyser.getFloatTimeDomainData(buf);
-        setAudioData(new Float32Array(buf));
+        audioDataRef.current = new Float32Array(buf);
         animFrameRef.current = requestAnimationFrame(tick);
       };
       animFrameRef.current = requestAnimationFrame(tick);
@@ -320,7 +320,7 @@ export default function App() {
                   )}
                 </div>
 
-                <AudioVisualizer audioData={audioData} isRecording={isRecording} stage={analysisStage} />
+                <AudioVisualizer audioDataRef={audioDataRef} isRecording={isRecording} stage={analysisStage} />
 
                 <div className="record-controls">
                   <div className={`record-btn-wrap ${isRecording ? 'is-recording' : ''}`}>
