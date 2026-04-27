@@ -155,5 +155,7 @@ export function generateFeedbackFromPrediction(prediction) {
     ],
   };
 
-  return map[prediction] ?? map.correct;
+  return map[prediction] ?? [
+    { type: 'pitch', severity: 'error', title: 'Unrecognized result', detail: 'The model returned an unrecognized prediction label. No feedback available.' },
+  ];
 }
