@@ -173,15 +173,9 @@ export default function App() {
       recorder.start(250); // collect a chunk every 250ms
 
     } catch {
-      // Microphone access was denied or unavailable — use a simulated waveform
-      const tick = () => {
-        const sim = new Float32Array(256);
-        for (let i = 0; i < sim.length; i++)
-          sim[i] = (Math.random() - 0.5) * 0.45 * Math.sin(Date.now() / 280 + i * 0.18);
-        setAudioData(sim);
-        animFrameRef.current = requestAnimationFrame(tick);
-      };
-      animFrameRef.current = requestAnimationFrame(tick);
+      setAnalysisError('Microphone access was denied. Please allow mic access and try again.');
+      setIsRecording(false);
+      return;
     }
 
     timerRef.current = setInterval(() => setSessionTime(s => s + 1), 1000);
