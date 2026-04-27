@@ -51,7 +51,7 @@ def extract_tempo(audio_file):
 def chunk_audio(y, sr, chunk_duration=3):
     chunk_size = sr * chunk_duration
     chunks = []
-    for start in range(0, len(y) - chunk_size, chunk_size):
+    for start in range(0, len(y), chunk_size):
         chunks.append(y[start:start + chunk_size])
     return chunks
 
