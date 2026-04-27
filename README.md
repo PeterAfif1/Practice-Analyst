@@ -1,40 +1,67 @@
 # Audio Practice Analyst
 
-A full-stack ML-powered audio classifier that detects pitch and rhythm
-errors in real-time using a trained machine learning model.
+Records microphone audio in the browser, sends it to a Python ML pipeline, and classifies it as `correct`, `flat`, `sharp`, or `off_rhythm`. Results are pushed back to the frontend over WebSocket.
 
 ## Tech Stack
-- React, Node.js
-- Python, Librosa, Scikit-learn
-- PostgreSQL
+
+- **Frontend:** React (Create React App, runs at project root)
+- **Backend:** Node.js with ES modules, Express, FFmpeg
+- **ML:** Python, Wav2Vec2 (HuggingFace transformers), librosa, scikit-learn
 
 ## How it Works
-1. Captures live microphone audio in the browser
-2. Sends audio to the Node.js backend
-3. Python pipeline extracts audio features (MFCCs, tempo, spectral centroid, ZCR)
-4. Random Forest model classifies audio into: correct, flat, sharp, off-rhythm
-5. Returns prediction with confidence scores
+
+1. User records audio in the browser via microphone
+2. Audio blob is POSTed to the Node.js backend
+3. FFmpeg converts it to WAV
+4. Python extracts features using Wav2Vec2 (`facebook/wav2vec2-base`)
+5. A trained classifier labels the audio as `correct`, `flat`, `sharp`, or `off_rhythm`
+6. Result is pushed to the frontend via WebSocket
+
+> **First run:** Wav2Vec2 downloads ~95MB of model weights on first analysis. Subsequent runs are fast.
+
+## Backend `.env`
+
+Create `backend/.env` before starting the server. All fields have defaults but `PORT` and `PYTHON_PATH` should be set explicitly:
+
+```
+PORT=4000
+PYTHON_PATH=../.venv/Scripts/python.exe    # Windows
+# PYTHON_PATH=../.venv/bin/python          # Mac/Linux
+ML_SCRIPT_PATH=../ML/analyze.py
+UPLOAD_DIR=./uploads
+```
 
 ## Running the Project
 
-**Backend**
+### 1. ML Setup (one time only, from project root)
+
+```bash
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+# Mac/Linux
+source .venv/bin/activate
+
+pip install -r ML/requirements.txt
 ```
+
+### 2. Backend (from `backend/`)
+
+```bash
 cd backend
 npm install
-npm start
+npm run dev
 ```
 
-**ML Pipeline**
-```
-cd ml
-pip install -r requirements.txt
-python analyze.py
-```
+`npm run dev` uses Node's built-in `--watch` flag — no nodemon needed.
+Use `npm start` for production.
 
-**Frontend**
-```
+### 3. Frontend (from project root, separate terminal)
+
+```bash
 npm install
 npm start
 ```
 
-> Requires a `.env` file with `DATABASE_URL` in the backend folder.
+Runs on `http://localhost:3000`. Backend must be running on port `4000`.
