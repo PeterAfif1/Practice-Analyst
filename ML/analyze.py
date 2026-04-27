@@ -68,14 +68,22 @@ def analyze(audio_file):
         try:
             sf.write(tmp_path, chunk, SR)
             features = extract_features_from_file(tmp_path)
-        finally:
+        except Exception as e:
+            sys.stderr.write(f"warning: skipping chunk — {e}\n")
             os.unlink(tmp_path)
+            continue
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
         features = features.reshape(1, -1)
         features = scaler.transform(features)
 
         chunk_predictions.append(model.predict(features)[0])
         chunk_proba.append(model.predict_proba(features)[0])
+
+    if not chunk_predictions:
+        return {"error": "Could not extract features from any chunk. Recording may be too short or corrupted."}
 
     # Majority vote across all chunks
     vote_counts  = Counter(chunk_predictions)
