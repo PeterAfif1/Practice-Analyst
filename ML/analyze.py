@@ -54,7 +54,11 @@ def analyze(audio_file):
         # Discard chunks shorter than 0.5 seconds
 
     model, scaler = load_model()
-    tempo = extract_tempo(audio_file)
+    try:
+        tempo = extract_tempo(audio_file)
+    except Exception as e:
+        sys.stderr.write(f"warning: tempo extraction failed — {e}\n")
+        tempo = None
 
     chunk_predictions  = []
     chunk_proba        = []
