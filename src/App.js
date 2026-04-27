@@ -146,6 +146,11 @@ export default function App() {
 
   // ── startRecording ───────────────────────────────────────────────────────────
   const startRecording = useCallback(async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setAnalysisError('Microphone access requires a secure connection (HTTPS) or localhost.');
+      setIsRecording(false);
+      return;
+    }
     setIsRecording(true);
     setAnalysisStage('listening');
     setAnalysisError(null);
