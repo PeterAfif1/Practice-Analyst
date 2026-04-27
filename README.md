@@ -24,6 +24,7 @@ Records microphone audio in the browser, sends it to a Python ML pipeline, and c
 Create `backend/.env` before starting the server. All fields have defaults but `PORT` and `PYTHON_PATH` should be set explicitly:
 
 ```
+DATABASE_URL=your_neon_connection_string_here
 PORT=4000
 PYTHON_PATH=../.venv/Scripts/python.exe    # Windows
 # PYTHON_PATH=../.venv/bin/python          # Mac/Linux
