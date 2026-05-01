@@ -4,17 +4,25 @@ from collections import Counter
 
 import librosa
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
 
-from extract_features import _extract_embeddings, chunk_audio
+from extract_features import extract_rhythm_features
 
 
 CLASSES = ['correct', 'off_rhythm', 'rushed', 'dragging']
 
+# Sample rate for loading — must match the rate WAVs were saved at (22050 Hz)
+SR = 22050
+
 
 def _load_split(split, base_dir):
+    """
+    Load all WAV files from data/{class}/{split}/, extract rhythm features
+    from the full clip (no re-chunking — 3-second context improves IOI signal),
+    return (X, y) arrays.
+    """
     X, y = [], []
     for cls in CLASSES:
         folder = os.path.join(base_dir, 'data', cls, split)
@@ -25,9 +33,10 @@ def _load_split(split, base_dir):
         print(f"  {cls}/{split}: {len(files)} files")
         for filename in files:
             try:
-                audio, sr = librosa.load(os.path.join(folder, filename), sr=16000)
-                for chunk in chunk_audio(audio, sr, chunk_duration=1):
-                    X.append(_extract_embeddings(chunk, sr))
+                audio, sr = librosa.load(os.path.join(folder, filename), sr=SR)
+                features = extract_rhythm_features(audio, sr)
+                if np.any(features):  # skip zero-vectors (< 3 onsets detected)
+                    X.append(features)
                     y.append(cls)
             except Exception as e:
                 print(f"    error {filename}: {e}")
@@ -59,14 +68,16 @@ def train():
     _print_distribution(y_val,   "Val distribution")
     _print_distribution(y_test,  "Test distribution")
 
+    print(f"\nFeature vector size: {X_train.shape[1]}")
+
     print("\nScaling features...")
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_val   = scaler.transform(X_val)
     X_test  = scaler.transform(X_test)
 
-    print("\nTraining Random Forest...")
-    model = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+    print("\nTraining Gradient Boosting classifier...")
+    model = GradientBoostingClassifier(n_estimators=300, max_depth=4, learning_rate=0.05, random_state=42)
     model.fit(X_train, y_train)
 
     val_acc = model.score(X_val, y_val)

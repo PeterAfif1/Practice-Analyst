@@ -31,6 +31,7 @@ import sys
 import tempfile
 from math import gcd
 
+import librosa
 import mido
 import numpy as np
 import soundfile as sf
@@ -164,7 +165,9 @@ def _apply_note_shift(track, shift_fn, ticks_per_beat, tempo_us):
 # ── three augmentation strategies ────────────────────────────────────────────
 
 def augment_off_rhythm(mid_path, out_path):
-    """Random per-hit timing jitter of ±20–80 ms on every note."""
+    """Random per-hit timing jitter of ±50–150 ms on every note.
+    Range is larger than natural human timing variation (~20–80 ms std)
+    so the class is clearly separable from correct."""
     mid = mido.MidiFile(mid_path)
     tempo = _get_tempo(mid)
     tpb = mid.ticks_per_beat
@@ -173,48 +176,90 @@ def augment_off_rhythm(mid_path, out_path):
     for track in mid.tracks:
         def _jitter(_idx, _tpb=tpb, _tempo=tempo):
             sign = random.choice([-1, 1])
-            ms = random.uniform(20, 80)
+            ms = random.uniform(50, 150)
             return sign * _ms_to_ticks(ms, _tpb, _tempo)
         new_mid.tracks.append(_apply_note_shift(track, _jitter, tpb, tempo))
     new_mid.save(out_path)
 
 
-def augment_rushed(mid_path, out_path):
+def _file_duration_ticks(mid):
+    """Return the total length of the MIDI file in ticks."""
+    return max(sum(msg.time for msg in track) for track in mid.tracks)
+
+
+def _apply_tempo_ramp(mid_path, out_path, speed_factor, n_steps=40):
     """
-    Each successive hit arrives progressively earlier, simulating a
-    drummer who gradually speeds up (tempo drift faster).
-    Step: 0.5 ms per note — gives ~125 ms total drift over 250 notes.
+    Replace the MIDI file's tempo with a linear ramp from base_tempo to
+    base_tempo / speed_factor.
+
+      speed_factor > 1  →  file gets faster  (rushed)
+      speed_factor < 1  →  file gets slower  (dragging)
+
+    n_steps set_tempo messages are inserted at evenly-spaced tick positions
+    in whichever track holds the existing tempo events (track 0 for type-1,
+    the sole track for type-0).  All existing set_tempo messages are removed
+    first so there are no conflicts.
+
+    30 % ramp (speed_factor=1.30 / 0.77) produces a clearly detectable
+    IOI slope within each 3-second chunk while staying musically interpretable.
     """
     mid = mido.MidiFile(mid_path)
-    tempo = _get_tempo(mid)
-    tpb = mid.ticks_per_beat
-    step = _ms_to_ticks(0.5, tpb, tempo)
+    base_tempo_us = _get_tempo(mid)            # µs per beat at nominal tempo
+    end_tempo_us  = int(base_tempo_us / speed_factor)
+    total_ticks   = _file_duration_ticks(mid)
 
-    new_mid = mido.MidiFile(ticks_per_beat=tpb, type=mid.type)
-    for track in mid.tracks:
-        new_mid.tracks.append(
-            _apply_note_shift(track, lambda i: -(i * step), tpb, tempo)
+    # Build (abs_tick → tempo_us) ramp points
+    ramp_events = [
+        (
+            int(i / n_steps * total_ticks),
+            int(base_tempo_us + (end_tempo_us - base_tempo_us) * i / n_steps),
         )
+        for i in range(n_steps + 1)
+    ]
+
+    new_mid = mido.MidiFile(ticks_per_beat=mid.ticks_per_beat, type=mid.type)
+
+    # Determine which track index carries tempo events
+    tempo_track_idx = 0  # type-1: tempo track is always track 0
+
+    for track_idx, track in enumerate(mid.tracks):
+        # Collect existing events as absolute times, dropping old set_tempo msgs
+        abs_events = []
+        t = 0
+        for msg in track:
+            t += msg.time
+            if msg.type != "set_tempo":
+                abs_events.append([t, msg])
+
+        # Inject ramp set_tempo messages into the designated tempo track
+        if track_idx == tempo_track_idx:
+            for abs_t, tempo_us in ramp_events:
+                abs_events.append(
+                    [abs_t, mido.MetaMessage("set_tempo", tempo=tempo_us, time=0)]
+                )
+
+        abs_events.sort(key=lambda e: e[0])
+
+        new_track = mido.MidiTrack()
+        prev = 0
+        for abs_t, msg in abs_events:
+            new_track.append(msg.copy(time=abs_t - prev))
+            prev = abs_t
+        new_mid.tracks.append(new_track)
+
     new_mid.save(out_path)
+
+
+def augment_rushed(mid_path, out_path):
+    """Linearly ramp tempo 30 % faster over the file (e.g. 120 → 156 BPM).
+    Creates a genuine within-chunk negative IOI slope detectable by the model."""
+    _apply_tempo_ramp(mid_path, out_path, speed_factor=1.30)
 
 
 def augment_dragging(mid_path, out_path):
-    """
-    Each successive hit arrives progressively later, simulating a
-    drummer who gradually slows down (tempo drift slower).
-    Step: 0.5 ms per note.
-    """
-    mid = mido.MidiFile(mid_path)
-    tempo = _get_tempo(mid)
-    tpb = mid.ticks_per_beat
-    step = _ms_to_ticks(0.5, tpb, tempo)
-
-    new_mid = mido.MidiFile(ticks_per_beat=tpb, type=mid.type)
-    for track in mid.tracks:
-        new_mid.tracks.append(
-            _apply_note_shift(track, lambda i: i * step, tpb, tempo)
-        )
-    new_mid.save(out_path)
+    """Linearly ramp tempo 30 % slower over the file (e.g. 120 → 92 BPM).
+    Creates a genuine within-chunk positive IOI slope detectable by the model."""
+    _apply_tempo_ramp(mid_path, out_path, speed_factor=1.0 / 1.30)
 
 
 AUGMENTATIONS = [
@@ -252,10 +297,21 @@ def save_chunks(wav_path, out_dir, prefix, sr_target=22050):
         return 0
 
     os.makedirs(out_dir, exist_ok=True)
+    saved = 0
     for i, chunk in enumerate(full_chunks):
+        # Skip silent or near-silent chunks: require at least 3 detected onsets
+        # and a non-zero mean inter-onset interval so the feature extractor
+        # won't produce a useless zero vector at training time.
+        onsets = librosa.onset.onset_detect(y=chunk, sr=sr, units='time')
+        if len(onsets) < 3:
+            continue
+        iois = np.diff(onsets)
+        if len(iois) == 0 or float(np.mean(iois)) == 0.0:
+            continue
         sf.write(os.path.join(out_dir, f"{prefix}_chunk{i:03d}.wav"),
                  chunk.astype(np.float32), sr)
-    return len(full_chunks)
+        saved += 1
+    return saved
 
 
 # ── main ─────────────────────────────────────────────────────────────────────
@@ -302,6 +358,24 @@ def main():
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = args.output_dir or os.path.join(script_dir, "data")
+
+    # Clear existing chunks before regenerating so stale files never mix with
+    # new ones.  Only the train/val/test subfolders inside each class dir are
+    # wiped; the class directories themselves are left in place.
+    print("Clearing existing chunks...")
+    for cls in ["correct", "off_rhythm", "rushed", "dragging"]:
+        for split in ["train", "val", "test"]:
+            split_dir = os.path.join(output_dir, cls, split)
+            if not os.path.isdir(split_dir):
+                continue
+            removed = 0
+            for fname in os.listdir(split_dir):
+                if fname.endswith(".wav"):
+                    os.remove(os.path.join(split_dir, fname))
+                    removed += 1
+            if removed:
+                print(f"  cleared {removed:>5} files from {cls}/{split}/")
+    print("Done clearing.\n")
 
     with open(csv_path, newline="") as f:
         all_rows = list(csv.DictReader(f))
