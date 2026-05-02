@@ -31,18 +31,28 @@ pool.connect((err, client, release) => {
 // "IF NOT EXISTS" is safe to call every time — it does nothing if the table
 // is already there, so no data is ever lost on restart.
 export async function createTables() {
-  const sql = `
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS sessions (
-      id          SERIAL PRIMARY KEY,          -- auto-incrementing unique row id
-      user_id     VARCHAR(255) NOT NULL,       -- who submitted the recording
-      prediction  VARCHAR(50)  NOT NULL,       -- ML prediction label (e.g. "correct", "flat")
-      confidence  JSONB        NOT NULL,       -- confidence scores for each class
-      audio_file  VARCHAR(255),               -- original name of the uploaded file
-      created_at  TIMESTAMP DEFAULT NOW()     -- when the row was inserted
+      id          SERIAL PRIMARY KEY,
+      user_id     VARCHAR(255) NOT NULL,
+      prediction  VARCHAR(50)  NOT NULL,
+      confidence  JSONB        NOT NULL,
+      audio_file  VARCHAR(255),
+      created_at  TIMESTAMP DEFAULT NOW()
     );
-  `;
+  `);
 
-  await pool.query(sql);
+  // Add new columns introduced in the rhythm-analysis update.
+  // ADD COLUMN IF NOT EXISTS is a no-op when the column already exists,
+  // so this is safe to run on every server start.
+  await pool.query(`
+    ALTER TABLE sessions
+      ADD COLUMN IF NOT EXISTS duration_seconds FLOAT,
+      ADD COLUMN IF NOT EXISTS bpm             FLOAT,
+      ADD COLUMN IF NOT EXISTS rhythm_score    FLOAT,
+      ADD COLUMN IF NOT EXISTS feedback        TEXT[];
+  `);
+
   console.log('✅  Table "sessions" ready');
 }
 

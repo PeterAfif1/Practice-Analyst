@@ -233,13 +233,18 @@ app.post('/analyze', (req, res) => {
       // $1, $2 … are parameterized — pg substitutes values safely to prevent SQL injection.
       try {
         await pool.query(
-          `INSERT INTO sessions (user_id, prediction, confidence, audio_file)
-           VALUES ($1, $2, $3, $4)`,
+          `INSERT INTO sessions
+             (user_id, prediction, confidence, audio_file,
+              duration_seconds, bpm, rhythm_score)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
             userId,
-            mlResult.prediction,    // ML prediction label from Python ("correct", "flat", etc.)
-            mlResult.confidence,    // confidence object — pg serializes to JSONB automatically
-            req.file.originalname,  // original file name the user uploaded
+            mlResult.prediction,
+            mlResult.confidence,
+            req.file.originalname,
+            (mlResult.chunks_analyzed ?? 0) * 3,  // each chunk is 3 s
+            mlResult.tempo   ?? null,
+            mlResult.avg_confidence ?? null,
           ]
         );
       } catch (dbErr) {
@@ -287,6 +292,80 @@ app.get('/history/:userId', async (req, res) => {
   } catch (dbErr) {
     console.error('DB query error:', dbErr.message);
     res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+// ─── Route: POST /api/sessions ───────────────────────────────────────────────
+// Creates a session row from a JSON body and returns the inserted row.
+// Body fields: user_id, prediction, confidence, audio_file,
+//              duration_seconds, bpm, rhythm_score, feedback
+
+app.post('/api/sessions', async (req, res) => {
+  const {
+    user_id, prediction, confidence, audio_file,
+    duration_seconds, bpm, rhythm_score, feedback,
+  } = req.body;
+
+  if (!user_id || !prediction || !confidence) {
+    return res.status(400).json({ error: 'user_id, prediction, and confidence are required' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO sessions
+         (user_id, prediction, confidence, audio_file,
+          duration_seconds, bpm, rhythm_score, feedback)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        user_id, prediction, confidence, audio_file ?? null,
+        duration_seconds ?? null, bpm ?? null,
+        rhythm_score ?? null, feedback ?? null,
+      ]
+    );
+    res.status(201).json({ success: true, session: rows[0] });
+  } catch (dbErr) {
+    console.error('POST /api/sessions error:', dbErr.message);
+    res.status(500).json({ error: 'Failed to create session' });
+  }
+});
+
+// ─── Route: GET /api/sessions ─────────────────────────────────────────────────
+// Returns all sessions, newest first.
+
+app.get('/api/sessions', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM sessions ORDER BY created_at DESC`
+    );
+    res.json({ success: true, sessions: rows });
+  } catch (dbErr) {
+    console.error('GET /api/sessions error:', dbErr.message);
+    res.status(500).json({ error: 'Failed to fetch sessions' });
+  }
+});
+
+// ─── Route: GET /api/sessions/:id ────────────────────────────────────────────
+// Returns a single session by primary key id.
+
+app.get('/api/sessions/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    return res.status(400).json({ error: 'id must be an integer' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM sessions WHERE id = $1`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: `Session ${id} not found` });
+    }
+    res.json({ success: true, session: rows[0] });
+  } catch (dbErr) {
+    console.error('GET /api/sessions/:id error:', dbErr.message);
+    res.status(500).json({ error: 'Failed to fetch session' });
   }
 });
 
