@@ -76,6 +76,63 @@ export async function fetchHistory(userId) {
   });
 }
 
+// ─── _transformRow ────────────────────────────────────────────────────────────
+// Shared helper: converts a DB sessions row into the shape UI components expect.
+function _transformRow(row) {
+  const conf = row.confidence || {};
+
+  const pitchAccuracy = Math.round((conf.correct ?? 0.5) * 100);
+  // Use stored rhythm_score when available, otherwise derive from confidence
+  const rhythmScore = row.rhythm_score != null
+    ? Math.round(row.rhythm_score * 100)
+    : Math.round(((conf.correct ?? 0.5) + (1 - (conf.off_rhythm ?? 0))) / 2 * 100);
+
+  // Format duration_seconds as "M:SS" if present
+  let duration = '—';
+  if (row.duration_seconds != null && row.duration_seconds > 0) {
+    const m = Math.floor(row.duration_seconds / 60);
+    const s = Math.round(row.duration_seconds % 60);
+    duration = `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  return {
+    id:            row.id,
+    date:          new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    duration,
+    instrument:    'RECORDING',
+    pitchAccuracy,
+    rhythmScore,
+    tempo:         row.bpm != null ? Math.round(row.bpm) : 0,
+    notesAnalyzed: row.chunks_analyzed ?? 0,
+    errors:        row.prediction !== 'correct' ? 1 : 0,
+    notes:         `Prediction: ${row.prediction}`,
+  };
+}
+
+// ─── getSessions ──────────────────────────────────────────────────────────────
+// Returns all sessions from the DB, newest first.
+export async function getSessions() {
+  const res = await fetch(`${BASE}/api/sessions`);
+  if (!res.ok) {
+    console.error('getSessions failed:', res.status);
+    return [];
+  }
+  const json = await res.json();
+  return (json.sessions || []).map(_transformRow);
+}
+
+// ─── getSession ───────────────────────────────────────────────────────────────
+// Returns a single session by id.
+export async function getSession(id) {
+  const res = await fetch(`${BASE}/api/sessions/${id}`);
+  if (!res.ok) {
+    console.error(`getSession(${id}) failed:`, res.status);
+    return null;
+  }
+  const json = await res.json();
+  return json.session ? _transformRow(json.session) : null;
+}
+
 // ─── connectWebSocket ─────────────────────────────────────────────────────────
 // Opens a WebSocket connection to the backend and registers the userId.
 // Calls onResult(data) whenever the backend pushes an 'analysis_complete' event.

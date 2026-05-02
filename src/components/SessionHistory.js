@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SessionHistory.css';
+import { getSessions } from '../api';
 
 function ScorePill({ value }) {
   const good = value >= 85;
@@ -11,8 +12,27 @@ function ScorePill({ value }) {
   );
 }
 
-export default function SessionHistory({ sessions }) {
+export default function SessionHistory() {
+  const [sessions, setSessions] = useState([]);
+  const [loading,  setLoading]  = useState(true);
   const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    getSessions()
+      .then(rows => setSessions(rows))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="history-page">
+        <div className="history-hero">
+          <h2 className="history-heading">Session History</h2>
+          <p className="history-sub">Loading sessions…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="history-page">
@@ -24,7 +44,9 @@ export default function SessionHistory({ sessions }) {
       <div className="history-layout">
         {/* List */}
         <div className="sessions-list">
-          {sessions.map((s, i) => (
+          {sessions.length === 0 ? (
+            <p className="history-empty">No sessions yet. Record your first session to get started.</p>
+          ) : sessions.map((s, i) => (
             <button
               key={s.id}
               className={`session-row ${selected?.id === s.id ? 'selected' : ''}`}

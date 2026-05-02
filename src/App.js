@@ -375,7 +375,7 @@ export default function App() {
         )}
 
         {activeTab === 'history' && (
-          <div className="tab-content"><SessionHistory sessions={sessions} /></div>
+          <div className="tab-content"><SessionHistory /></div>
         )}
       </main>
 

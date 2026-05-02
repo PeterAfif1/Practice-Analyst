@@ -50,7 +50,7 @@ def _print_distribution(y, label):
     print(f"\n{label} ({total} samples):")
     for cls in CLASSES:
         n = counts.get(cls, 0)
-        bar = '█' * (n * 30 // max_n)
+        bar = '#' * (n * 30 // max_n)
         print(f"  {cls:<12} {n:>6}  {n / total * 100:5.1f}%  {bar}")
 
 
