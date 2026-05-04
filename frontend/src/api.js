@@ -172,20 +172,15 @@ export function connectWebSocket(userId, onResult) {
 
 // ─── transformMLResult ────────────────────────────────────────────────────────
 // Converts the raw ML output into the metrics shape the UI components expect.
-// ML output: { prediction, confidence: { correct, flat, sharp, off_rhythm }, tempo }
-// UI needs:  { pitchAccuracy, rhythmScore, tempo, pitchDeviation, notesAnalyzed, errorCount, confidence }
-export function transformMLResult({ prediction, confidence = {}, tempo = 120 }) {
-  const correct    = confidence.correct    ?? 0.5;
-  const offRhythm  = confidence.off_rhythm ?? 0;
-
+// ML output: { prediction, confidence: { correct, off_rhythm, rushed, dragging }, tempo, avg_confidence, chunks_analyzed }
+// UI needs:  { rhythmScore, tempo, prediction, confidence, chunksAnalyzed }
+export function transformMLResult({ prediction, confidence = {}, tempo, avg_confidence, chunks_analyzed }) {
   return {
-    pitchAccuracy:  Math.round(correct * 100),
-    rhythmScore:    Math.round(((correct + (1 - offRhythm)) / 2) * 100),
-    tempo:          Math.round(tempo),
-    pitchDeviation: prediction === 'correct' ? 4 : prediction === 'flat' ? 22 : 18,
-    notesAnalyzed:  48,  // placeholder until the ML model returns this
-    errorCount:     prediction === 'correct' ? 0 : 2,
-    confidence:     Math.round(correct * 100),
+    rhythmScore:    Math.round((confidence.correct ?? 0) * 100),
+    tempo:          tempo != null ? Math.round(tempo) : null,
+    prediction,
+    confidence:     avg_confidence != null ? Math.round(avg_confidence * 100) : Math.round((confidence.correct ?? 0) * 100),
+    chunksAnalyzed: chunks_analyzed ?? null,
   };
 }
 

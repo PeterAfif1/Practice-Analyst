@@ -5,7 +5,7 @@ CLAUDE.md
 *[Cc][Ll][Aa][Uu][Dd][Ee]*
 
 # ── Node ─────────────────────────────────────────────────────────────────────
-node_modules/
+frontend/node_modules/
 backend/node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -32,9 +32,10 @@ ML/data/
 backend/uploads/
 
 # ── Build output ─────────────────────────────────────────────────────────────
-build/
-dist/
+frontend/build/
+frontend/dist/
 
 # ── OS junk ──────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+.vscode/

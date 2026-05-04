@@ -1,46 +1,19 @@
 import React from 'react';
 import './MetricsPanel.css';
 
-function letterGrade(val) {
-  if (val == null) return null;
-  if (val >= 93) return 'A';
-  if (val >= 90) return 'A-';
-  if (val >= 87) return 'B+';
-  if (val >= 83) return 'B';
-  if (val >= 80) return 'B-';
-  if (val >= 77) return 'C+';
-  if (val >= 73) return 'C';
-  if (val >= 70) return 'C-';
-  if (val >= 65) return 'D';
-  return 'F';
-}
-
-function gradeColor(val) {
-  if (val == null) return 'var(--outline-variant)';
-  if (val >= 85) return 'var(--tertiary)';
-  if (val >= 70) return 'var(--caution)';
-  return 'var(--error)';
-}
-
-function gradeTrack(val) {
-  if (val == null) return 'rgba(68,72,79,0.3)';
-  if (val >= 85) return 'rgba(187,255,179,0.12)';
-  if (val >= 70) return 'rgba(252,211,77,0.12)';
-  return 'rgba(255,113,108,0.12)';
-}
-
-function ScoreRing({ value, label }) {
+function ScoreRing({ value, label, prediction }) {
   const r     = 34;
   const circ  = 2 * Math.PI * r;
   const pct   = typeof value === 'number' ? value / 100 : 0;
-  const color = gradeColor(value);
-  const grade = letterGrade(value);
+  const color = prediction ? (PREDICTION_COLOR[prediction] ?? 'var(--outline-variant)') : 'var(--outline-variant)';
+  const track = prediction ? (PREDICTION_TRACK[prediction] ?? 'rgba(68,72,79,0.3)')     : 'rgba(68,72,79,0.3)';
+  const grade = prediction ?  PREDICTION_GRADE[prediction]                               : null;
 
   return (
     <div className="ring-wrap">
       <svg viewBox="0 0 88 88" className="ring-svg">
         {/* Track */}
-        <circle cx="44" cy="44" r={r} fill="none" stroke={gradeTrack(value)} strokeWidth="6" />
+        <circle cx="44" cy="44" r={r} fill="none" stroke={track} strokeWidth="6" />
         {/* Progress */}
         <circle cx="44" cy="44" r={r} fill="none"
           stroke={color} strokeWidth="6" strokeLinecap="round"
@@ -51,7 +24,7 @@ function ScoreRing({ value, label }) {
       <div className="ring-center">
         {typeof value === 'number' ? (
           <>
-            <span className="ring-grade" style={{ color }}>{grade}</span>
+            <span className="ring-grade" style={{ color }}>{grade ?? '—'}</span>
             <span className="ring-pct">{value}%</span>
           </>
         ) : (
@@ -74,6 +47,34 @@ function StatRow({ label, value, unit, color }) {
   );
 }
 
+const PREDICTION_GRADE = {
+  correct:    'A',
+  off_rhythm: 'C',
+  rushed:     'D',
+  dragging:   'D',
+};
+
+const PREDICTION_LABEL = {
+  correct:    'Correct',
+  off_rhythm: 'Off rhythm',
+  rushed:     'Rushed',
+  dragging:   'Dragging',
+};
+
+const PREDICTION_COLOR = {
+  correct:    'var(--tertiary)',
+  off_rhythm: 'var(--error)',
+  rushed:     'var(--caution)',
+  dragging:   'var(--caution)',
+};
+
+const PREDICTION_TRACK = {
+  correct:    'rgba(187,255,179,0.12)',
+  off_rhythm: 'rgba(255,113,108,0.12)',
+  rushed:     'rgba(252,211,77,0.12)',
+  dragging:   'rgba(252,211,77,0.12)',
+};
+
 export default function MetricsPanel({ metrics, isRecording, stage }) {
   return (
     <div className="metrics-panel">
@@ -83,38 +84,20 @@ export default function MetricsPanel({ metrics, isRecording, stage }) {
       </div>
 
       <div className="rings-row">
-        <ScoreRing value={metrics?.pitchAccuracy} label="Pitch" />
-        <ScoreRing value={metrics?.rhythmScore}   label="Rhythm" />
+        <ScoreRing value={metrics?.rhythmScore} label="Rhythm" prediction={metrics?.prediction} />
       </div>
 
       <div className="divider" />
 
       <div className="stats-list">
-        <StatRow label="Tempo"          value={metrics?.tempo}          unit="BPM" />
-        <StatRow label="Pitch deviation" value={metrics?.pitchDeviation} unit="cents"
-          color={metrics?.pitchDeviation > 20 ? 'var(--caution)' : undefined} />
-        <StatRow label="Notes detected"  value={metrics?.notesAnalyzed} />
-        <StatRow label="Issues flagged"  value={metrics?.errorCount}
-          color={metrics?.errorCount > 0 ? 'var(--danger)' : 'var(--success)'} />
+        <StatRow label="Tempo"           value={metrics?.tempo}          unit="BPM" />
+        <StatRow label="Prediction"
+          value={metrics?.prediction ? (PREDICTION_LABEL[metrics.prediction] ?? metrics.prediction) : null}
+          color={metrics?.prediction ? PREDICTION_COLOR[metrics.prediction] : undefined} />
+        <StatRow label="Confidence"
+          value={metrics?.confidence != null ? `${metrics.confidence}%` : null} />
+        <StatRow label="Chunks analyzed" value={metrics?.chunksAnalyzed} />
       </div>
-
-      {metrics && (
-        <>
-          <div className="divider" />
-          <div className="confidence-block">
-            <div className="confidence-row">
-              <span className="stat-label">Model confidence</span>
-              <span className="stat-val">{metrics.confidence}%</span>
-            </div>
-            <div className="conf-track">
-              <div className="conf-fill" style={{
-                width: `${metrics.confidence}%`,
-                background: gradeColor(metrics.confidence)
-              }} />
-            </div>
-          </div>
-        </>
-      )}
 
       {!metrics && (
         <div className="metrics-empty">
