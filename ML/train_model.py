@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
+from sklearn.utils import compute_sample_weight
 
 from extract_features import extract_rhythm_features
 
@@ -78,7 +79,8 @@ def train():
 
     print("\nTraining Gradient Boosting classifier...")
     model = GradientBoostingClassifier(n_estimators=300, max_depth=4, learning_rate=0.05, random_state=42)
-    model.fit(X_train, y_train)
+    sample_weights = compute_sample_weight('balanced', y_train)
+    model.fit(X_train, y_train, sample_weight=sample_weights)
 
     val_acc = model.score(X_val, y_val)
     print(f"\nVal accuracy:  {val_acc * 100:.2f}%")

@@ -187,37 +187,47 @@ def _file_duration_ticks(mid):
     return max(sum(msg.time for msg in track) for track in mid.tracks)
 
 
-def _apply_tempo_ramp(mid_path, out_path, speed_factor, n_steps=40):
+def _apply_tempo_ramp(mid_path, out_path, speed_factor, n_steps=40,
+                      ramp_seconds=3.0):
     """
     Replace the MIDI file's tempo with a linear ramp from base_tempo to
-    base_tempo / speed_factor.
+    base_tempo / speed_factor, compressed into a fixed ramp_seconds window
+    (default 3 s) at the start of the file.  The rest of the file holds the
+    final tempo.
 
       speed_factor > 1  →  file gets faster  (rushed)
       speed_factor < 1  →  file gets slower  (dragging)
 
-    n_steps set_tempo messages are inserted at evenly-spaced tick positions
-    in whichever track holds the existing tempo events (track 0 for type-1,
-    the sole track for type-0).  All existing set_tempo messages are removed
-    first so there are no conflicts.
-
-    30 % ramp (speed_factor=1.30 / 0.77) produces a clearly detectable
-    IOI slope within each 3-second chunk while staying musically interpretable.
+    Previously the ramp was spread across total_ticks (the whole file), so a
+    30-second file only produced ~3 BPM of change per 3-second chunk — below
+    the noise floor of ioi_slope.  By capping the ramp to ramp_seconds every
+    3-second chunk that overlaps the ramp window sees the full
+    speed_factor change, making the signal clearly detectable.
     """
     mid = mido.MidiFile(mid_path)
-    base_tempo_us = _get_tempo(mid)            # µs per beat at nominal tempo
+    base_tempo_us = _get_tempo(mid)   # µs per beat at nominal tempo
     end_tempo_us  = int(base_tempo_us / speed_factor)
-    total_ticks   = _file_duration_ticks(mid)
+    tpb           = mid.ticks_per_beat
 
-    # Build (abs_tick → tempo_us) ramp points
+    # Convert ramp_seconds → ticks using the base tempo.
+    # ticks_per_second = tpb × (1_000_000 / base_tempo_us)
+    ticks_per_sec = tpb * 1_000_000 / base_tempo_us
+    ramp_ticks    = int(ticks_per_sec * ramp_seconds)
+
+    # Build (abs_tick → tempo_us) ramp points within [0, ramp_ticks].
+    # After ramp_ticks the file stays at end_tempo_us.
     ramp_events = [
         (
-            int(i / n_steps * total_ticks),
+            int(i / n_steps * ramp_ticks),
             int(base_tempo_us + (end_tempo_us - base_tempo_us) * i / n_steps),
         )
         for i in range(n_steps + 1)
     ]
+    # Final hold: lock end tempo for the rest of the file so there are no
+    # tempo-event gaps that could confuse FluidSynth.
+    ramp_events.append((ramp_ticks, end_tempo_us))
 
-    new_mid = mido.MidiFile(ticks_per_beat=mid.ticks_per_beat, type=mid.type)
+    new_mid = mido.MidiFile(ticks_per_beat=tpb, type=mid.type)
 
     # Determine which track index carries tempo events
     tempo_track_idx = 0  # type-1: tempo track is always track 0
@@ -251,15 +261,39 @@ def _apply_tempo_ramp(mid_path, out_path, speed_factor, n_steps=40):
 
 
 def augment_rushed(mid_path, out_path):
-    """Linearly ramp tempo 30 % faster over the file (e.g. 120 → 156 BPM).
-    Creates a genuine within-chunk negative IOI slope detectable by the model."""
+    """Ramp tempo 30 % faster within the first 3 seconds (e.g. 120 → 156 BPM).
+    Every 3-second chunk that overlaps that window sees the full acceleration."""
     _apply_tempo_ramp(mid_path, out_path, speed_factor=1.30)
 
 
 def augment_dragging(mid_path, out_path):
-    """Linearly ramp tempo 30 % slower over the file (e.g. 120 → 92 BPM).
-    Creates a genuine within-chunk positive IOI slope detectable by the model."""
+    """Ramp tempo 30 % slower within the first 3 seconds (e.g. 120 → 92 BPM).
+    Every 3-second chunk that overlaps that window sees the full deceleration."""
     _apply_tempo_ramp(mid_path, out_path, speed_factor=1.0 / 1.30)
+
+
+def _apply_natural_jitter(mid_path, out_path, sigma_ms=15, cap_ms=30):
+    """
+    Add small Gaussian timing jitter (σ=15 ms, capped at ±30 ms) to every
+    note_on in the MIDI, simulating natural human timing variation.
+
+    Without this, the correct class is metronomically perfect (ioi_std ≈ 0,
+    beat_dev_std ≈ 0), which is physically impossible for a human performer.
+    The model would learn a decision boundary that real recordings can never
+    satisfy, causing it to misclassify good playing as off_rhythm or rushed.
+    """
+    mid = mido.MidiFile(mid_path)
+    tempo = _get_tempo(mid)
+    tpb   = mid.ticks_per_beat
+
+    new_mid = mido.MidiFile(ticks_per_beat=tpb, type=mid.type)
+    for track in mid.tracks:
+        def _jitter(_idx, _tpb=tpb, _tempo=tempo):
+            raw_ms  = random.gauss(0, sigma_ms)
+            clamped = max(-cap_ms, min(cap_ms, raw_ms))
+            return _ms_to_ticks(abs(clamped), _tpb, _tempo) * (1 if clamped >= 0 else -1)
+        new_mid.tracks.append(_apply_note_shift(track, _jitter, tpb, tempo))
+    new_mid.save(out_path)
 
 
 AUGMENTATIONS = [
@@ -407,10 +441,14 @@ def main():
             safe = midi_rel.replace("/", "_").replace("\\", "_").replace(".mid", "")
             print(f"[{idx:>3}/{len(rows)}] {safe}  bpm={bpm}  split={split}")
 
-            # ── render original → correct ──────────────────────────────
-            orig_wav = os.path.join(tmpdir, f"{safe}_orig.wav")
+            # ── render original → correct (with natural jitter) ───────
+            orig_wav    = os.path.join(tmpdir, f"{safe}_orig.wav")
+            jitter_mid  = os.path.join(tmpdir, f"{safe}_jitter.mid")
+            jitter_wav  = os.path.join(tmpdir, f"{safe}_jitter.wav")
             try:
                 render_midi(midi_path, soundfont, orig_wav, sr=args.sr)
+                _apply_natural_jitter(midi_path, jitter_mid)
+                render_midi(jitter_mid, soundfont, jitter_wav, sr=args.sr)
             except (subprocess.CalledProcessError, RuntimeError) as e:
                 print(f"  render failed: {e}")
                 skipped += 1
@@ -420,7 +458,11 @@ def main():
                             os.path.join(output_dir, "correct", split),
                             safe, sr_target=args.sr)
             totals["correct"] += n
-            print(f"  correct/{split}: {n} chunks")
+            n2 = save_chunks(jitter_wav,
+                             os.path.join(output_dir, "correct", split),
+                             f"{safe}_jitter", sr_target=args.sr)
+            totals["correct"] += n2
+            print(f"  correct/{split}: {n + n2} chunks ({n} clean + {n2} jittered)")
 
             # ── augmented variants ─────────────────────────────────────
             for cls, aug_fn in AUGMENTATIONS:
