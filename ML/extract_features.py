@@ -76,7 +76,6 @@ def extract_rhythm_features(y, sr):
     if n_onsets < 3:
         return np.zeros(16, dtype=np.float32)
 
-    # Inter-onset intervals
     iois = np.diff(onsets)
     ioi_mean = float(np.mean(iois))
     ioi_std  = float(np.std(iois))
@@ -84,10 +83,8 @@ def extract_rhythm_features(y, sr):
     ioi_max  = float(np.max(iois))
     ioi_cv   = ioi_std / (ioi_mean + 1e-8)
 
-    # Linear trend of IOIs
     ioi_slope = float(np.polyfit(np.arange(len(iois)), iois, 1)[0])
 
-    # Tempo on full clip
     tempo_raw, _ = librosa.beat.beat_track(y=y, sr=sr)
     tempo = float(np.asarray(tempo_raw).flatten()[0])
 
@@ -155,7 +152,6 @@ def load_dataset():
                 try:
                     audio, sr = librosa.load(filepath, sr=16000)
 
-                    # Split into 1-second chunks
                     chunks = chunk_audio(audio, sr, chunk_duration=1)
 
                     print(f"  {filename} → {len(chunks)} chunks")

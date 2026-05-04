@@ -11,7 +11,7 @@ from extract_features import extract_rhythm_features, extract_tempo
 
 SR             = 22050
 CHUNK_SAMPLES  = SR * 3   # 3-second chunks — matches training
-MIN_SAMPLES    = SR * 3   # require at least one full chunk
+MIN_SAMPLES    = SR * 3
 PAD_THRESHOLD  = SR       # pad final short chunk if >= 1 second
 
 
@@ -34,7 +34,6 @@ def analyze(audio_file):
     if len(y) < MIN_SAMPLES:
         return {"error": "Recording too short. Please record at least 3 seconds."}
 
-    # Split into 3-second chunks (matching training chunk size)
     chunks = []
     for start in range(0, len(y), CHUNK_SAMPLES):
         chunk = y[start:start + CHUNK_SAMPLES]

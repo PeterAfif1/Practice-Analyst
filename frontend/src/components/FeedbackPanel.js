@@ -1,14 +1,12 @@
 import React from 'react';
 import './FeedbackPanel.css';
 
-// Pitch clef icon
 const PitchIcon = () => (
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M10 2c0 0 4 3 4 7s-4 7-4 7M10 2C10 2 6 5 6 9s4 7 4 7M10 2v16"/>
   </svg>
 );
 
-// Rhythm pulse icon
 const RhythmIcon = () => (
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M2 10h3l2-6 3 12 2-8 2 4h4"/>

@@ -12,9 +12,7 @@ function ScoreRing({ value, label, prediction }) {
   return (
     <div className="ring-wrap">
       <svg viewBox="0 0 88 88" className="ring-svg">
-        {/* Track */}
         <circle cx="44" cy="44" r={r} fill="none" stroke={track} strokeWidth="6" />
-        {/* Progress */}
         <circle cx="44" cy="44" r={r} fill="none"
           stroke={color} strokeWidth="6" strokeLinecap="round"
           strokeDasharray={`${pct * circ} ${(1 - pct) * circ}`}

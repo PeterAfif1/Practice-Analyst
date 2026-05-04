@@ -41,8 +41,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from extract_features import chunk_audio  # noqa: E402
 
 
-# ── dependency checks ────────────────────────────────────────────────────────
-
 def _check_fluidsynth():
     if shutil.which("fluidsynth") is None:
         sys.exit(
@@ -65,8 +63,6 @@ def _check_mido():
         )
 
 
-# ── soundfont auto-discovery ─────────────────────────────────────────────────
-
 _SF2_CANDIDATES = [
     os.path.expanduser(r"~\Downloads\GeneralUser-GS.sf2"),
     os.path.expanduser(r"~\Downloads\GeneralUser GS v1.471.sf2"),
@@ -85,8 +81,6 @@ def _find_soundfont():
             return path
     return None
 
-
-# ── MIDI rendering ───────────────────────────────────────────────────────────
 
 def render_midi(midi_path, soundfont_path, out_wav, sr=22050):
     """Render a MIDI file to WAV using FluidSynth."""
@@ -111,8 +105,6 @@ def render_midi(midi_path, soundfont_path, out_wav, sr=22050):
         )
 
 
-# ── MIDI augmentation helpers ────────────────────────────────────────────────
-
 def _get_tempo(mid):
     """Return first set_tempo value (microseconds/beat), default 500000."""
     for track in mid.tracks:
@@ -134,14 +126,12 @@ def _apply_note_shift(track, shift_fn, ticks_per_beat, tempo_us):
     Works on absolute times to avoid cascading rounding errors, then
     rebuilds relative times before returning.
     """
-    # Build absolute-time list
     abs_events = []
     t = 0
     for msg in track:
         t += msg.time
         abs_events.append([t, msg])
 
-    # Shift note_on events
     note_idx = 0
     for event in abs_events:
         msg = event[1]
@@ -150,10 +140,8 @@ def _apply_note_shift(track, shift_fn, ticks_per_beat, tempo_us):
             event[0] = max(0, event[0] + delta)
             note_idx += 1
 
-    # Stable sort by new absolute time
     abs_events.sort(key=lambda e: e[0])
 
-    # Rebuild relative times
     new_track = mido.MidiTrack()
     prev = 0
     for abs_t, msg in abs_events:
@@ -162,7 +150,6 @@ def _apply_note_shift(track, shift_fn, ticks_per_beat, tempo_us):
     return new_track
 
 
-# ── three augmentation strategies ────────────────────────────────────────────
 
 def augment_off_rhythm(mid_path, out_path):
     """Random per-hit timing jitter of ±50–150 ms on every note.
@@ -233,7 +220,6 @@ def _apply_tempo_ramp(mid_path, out_path, speed_factor, n_steps=40,
     tempo_track_idx = 0  # type-1: tempo track is always track 0
 
     for track_idx, track in enumerate(mid.tracks):
-        # Collect existing events as absolute times, dropping old set_tempo msgs
         abs_events = []
         t = 0
         for msg in track:
@@ -241,7 +227,6 @@ def _apply_tempo_ramp(mid_path, out_path, speed_factor, n_steps=40,
             if msg.type != "set_tempo":
                 abs_events.append([t, msg])
 
-        # Inject ramp set_tempo messages into the designated tempo track
         if track_idx == tempo_track_idx:
             for abs_t, tempo_us in ramp_events:
                 abs_events.append(
@@ -302,7 +287,6 @@ AUGMENTATIONS = [
     ("dragging",   augment_dragging),
 ]
 
-# ── chunking + saving ────────────────────────────────────────────────────────
 
 SPLIT_MAP = {"train": "train", "test": "test", "validation": "val"}
 
@@ -347,8 +331,6 @@ def save_chunks(wav_path, out_dir, prefix, sr_target=22050):
         saved += 1
     return saved
 
-
-# ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
@@ -441,7 +423,6 @@ def main():
             safe = midi_rel.replace("/", "_").replace("\\", "_").replace(".mid", "")
             print(f"[{idx:>3}/{len(rows)}] {safe}  bpm={bpm}  split={split}")
 
-            # ── render original → correct (with natural jitter) ───────
             orig_wav    = os.path.join(tmpdir, f"{safe}_orig.wav")
             jitter_mid  = os.path.join(tmpdir, f"{safe}_jitter.mid")
             jitter_wav  = os.path.join(tmpdir, f"{safe}_jitter.wav")
@@ -464,7 +445,6 @@ def main():
             totals["correct"] += n2
             print(f"  correct/{split}: {n + n2} chunks ({n} clean + {n2} jittered)")
 
-            # ── augmented variants ─────────────────────────────────────
             for cls, aug_fn in AUGMENTATIONS:
                 aug_mid = os.path.join(tmpdir, f"{safe}_{cls}.mid")
                 aug_wav = os.path.join(tmpdir, f"{safe}_{cls}.wav")

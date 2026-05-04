@@ -30,9 +30,6 @@ export default function App() {
   const [analysisStage, setAnalysisStage] = useState("idle");
   const [analysisError, setAnalysisError] = useState(null);
 
-  // ── userId ──────────────────────────────────────────────────────────────────
-  // Persist a unique user ID in localStorage so history survives page refreshes.
-  // On first visit, generate one; on return visits, reuse the stored one.
   const [userId] = useState(() => {
     const stored = localStorage.getItem("apa_userId");
     if (stored) return stored;
@@ -41,18 +38,13 @@ export default function App() {
     return id;
   });
 
-  // ── Session history + progress data ─────────────────────────────────────────
   const [sessions, setSessions] = useState([]);
   const [progressData, setProgressData] = useState([]);
 
-  // Load the user's past sessions from the backend whenever the userId is known.
-  // This populates the History and Analysis tabs with real data.
   useEffect(() => {
     fetchHistory(userId).then((rows) => {
       setSessions(rows);
 
-      // Derive progress chart data from the loaded sessions.
-      // Each session becomes one point on the chart: { session, pitchAccuracy, rhythmScore }
       const progress = rows.map((s, i) => ({
         session: `S${i + 1}`,
         pitchAccuracy: s.pitchAccuracy,
@@ -62,44 +54,33 @@ export default function App() {
     });
   }, [userId]);
 
-  // ── WebSocket ────────────────────────────────────────────────────────────────
-  // Connect once on mount so the backend can push real-time results to us.
-  // The cleanup function closes the socket when the component unmounts.
   useEffect(() => {
     const ws = connectWebSocket(userId, (mlData) => {
-      // This fires when the backend finishes ML analysis and pushes the result.
       // Clear the timeout so the "timed out" error doesn't fire after results arrive.
       clearTimeout(analysisTimeoutRef.current);
-      // Update metrics and mark the stage as done so the UI renders the results.
       setMetrics(transformMLResult(mlData));
       setFeedback(generateFeedbackFromPrediction(mlData.prediction));
       setAnalysisStage("done");
     });
-    return () => ws.close(); // cleanup on unmount
+    return () => ws.close();
   }, [userId]);
 
-  // ── Refs ─────────────────────────────────────────────────────────────────────
   const streamRef = useRef(null);
   const animFrameRef = useRef(null);
   const timerRef = useRef(null);
-  const audioChunksRef = useRef([]); // accumulates recorded audio chunks
-  const mediaRecorderRef = useRef(null); // holds the MediaRecorder instance
-  const analysisTimeoutRef = useRef(null); // holds the WebSocket result timeout ID
+  const audioChunksRef = useRef([]);
+  const mediaRecorderRef = useRef(null);
+  const analysisTimeoutRef = useRef(null);
 
-  // ── stopRecording ────────────────────────────────────────────────────────────
-  // Stops the microphone, collects the recorded audio blob, and sends it
-  // to the backend for ML analysis. Results come back via HTTP response.
   const stopRecording = useCallback(async () => {
     setIsRecording(false);
     setAnalysisStage("analyzing");
 
-    // Stop all microphone tracks so the browser releases the mic
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
 
-    // Cancel the waveform animation and timers
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
 
@@ -115,22 +96,16 @@ export default function App() {
     // Wait a tick for the MediaRecorder 'stop' event to finish delivering chunks
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    // Combine all the recorded chunks into a single audio Blob
     const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
 
     try {
-      // POST the audio to the backend. The backend runs Python analysis,
-      // saves to DB, and returns the ML result.
-      // UI state (metrics, feedback, stage) is updated by the WebSocket handler below.
       await analyzeAudio(blob, userId);
 
-      // Start a 30-second timeout. If the WebSocket result never arrives, reset the UI.
       analysisTimeoutRef.current = setTimeout(() => {
         setAnalysisError("Analysis timed out. Please try again.");
         setAnalysisStage("idle");
       }, 30000);
 
-      // Refresh the history list so the new session appears immediately
       fetchHistory(userId).then((rows) => {
         setSessions(rows);
         setProgressData(
@@ -148,7 +123,6 @@ export default function App() {
     }
   }, [userId]);
 
-  // ── startRecording ───────────────────────────────────────────────────────────
   const startRecording = useCallback(async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setAnalysisError(
@@ -163,13 +137,12 @@ export default function App() {
     setSessionTime(0);
     setMetrics(null);
     setFeedback([]);
-    audioChunksRef.current = []; // clear any previous recording chunks
+    audioChunksRef.current = [];
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Set up the waveform visualiser
       const ctx = new AudioContext();
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
@@ -183,8 +156,6 @@ export default function App() {
       };
       animFrameRef.current = requestAnimationFrame(tick);
 
-      // Set up MediaRecorder to capture the audio as a binary blob.
-      // ondataavailable fires periodically; we collect the chunks.
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       recorder.ondataavailable = (e) => {
@@ -202,7 +173,6 @@ export default function App() {
     timerRef.current = setInterval(() => setSessionTime((s) => s + 1), 1000);
   }, []);
 
-  // ── Cleanup on unmount ───────────────────────────────────────────────────────
   useEffect(
     () => () => {
       if (streamRef.current)
@@ -213,7 +183,6 @@ export default function App() {
     [],
   );
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
   const fmt = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
@@ -252,7 +221,6 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* ── Sidebar ── */}
       <aside className="sidebar">
         <div className="sidebar-brand">
           <div className="sidebar-logo">
@@ -309,7 +277,6 @@ export default function App() {
         </div>
       </aside>
 
-      {/* ── Top bar ── */}
       <header className="top-bar">
         <span className="top-bar-title">{tabTitles[activeTab]}</span>
         <div className="top-bar-right">
@@ -334,7 +301,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Main ── */}
       <main className="app-main">
         {showDashboard && (
           <div className="dashboard-layout">
@@ -437,7 +403,6 @@ export default function App() {
         )}
       </main>
 
-      {/* ── Mobile bottom nav ── */}
       <nav className="mobile-bottom-nav">
         {NAV_ITEMS.map(({ key, label, icon }) =>
           key === "practice" ? (

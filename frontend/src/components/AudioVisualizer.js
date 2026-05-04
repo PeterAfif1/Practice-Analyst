@@ -40,7 +40,6 @@ export default function AudioVisualizer({ audioDataRef, isRecording, stage }) {
 
       ctx.clearRect(0, 0, W, H);
 
-      // Idle state: staff lines + dashed centre line
       if (!isRec && stg === 'idle') {
         const staffColor = 'rgba(255,255,255,0.04)';
         [0.2, 0.35, 0.5, 0.65, 0.8].forEach(p => {
@@ -67,7 +66,6 @@ export default function AudioVisualizer({ audioDataRef, isRecording, stage }) {
       const step      = W / len;
       const waveColor = isRec ? '249,115,22' : '109,221,255';
 
-      // Outer glow
       ctx.beginPath();
       ctx.strokeStyle = `rgba(${waveColor},0.10)`;
       ctx.lineWidth   = 10;
@@ -78,7 +76,6 @@ export default function AudioVisualizer({ audioDataRef, isRecording, stage }) {
       }
       ctx.stroke();
 
-      // Mid glow
       ctx.beginPath();
       ctx.strokeStyle = `rgba(${waveColor},0.25)`;
       ctx.lineWidth   = 4;
@@ -89,7 +86,6 @@ export default function AudioVisualizer({ audioDataRef, isRecording, stage }) {
       }
       ctx.stroke();
 
-      // Main line
       ctx.beginPath();
       ctx.strokeStyle = isRec ? '#F97316' : '#6dddff';
       ctx.lineWidth   = 2;
@@ -101,7 +97,6 @@ export default function AudioVisualizer({ audioDataRef, isRecording, stage }) {
       }
       ctx.stroke();
 
-      // Fill
       const grad = ctx.createLinearGradient(0, 0, 0, H);
       grad.addColorStop(0, `rgba(${waveColor},0.10)`);
       grad.addColorStop(1, `rgba(${waveColor},0)`);

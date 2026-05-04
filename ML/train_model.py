@@ -36,7 +36,7 @@ def _load_split(split, base_dir):
             try:
                 audio, sr = librosa.load(os.path.join(folder, filename), sr=SR)
                 features = extract_rhythm_features(audio, sr)
-                if np.any(features):  # skip zero-vectors (< 3 onsets detected)
+                if np.any(features):  # zero-vector = fewer than 3 onsets detected
                     X.append(features)
                     y.append(cls)
             except Exception as e:

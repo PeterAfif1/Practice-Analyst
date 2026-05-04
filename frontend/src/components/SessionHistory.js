@@ -42,7 +42,6 @@ export default function SessionHistory() {
       </div>
 
       <div className="history-layout">
-        {/* List */}
         <div className="sessions-list">
           {sessions.length === 0 ? (
             <p className="history-empty">No sessions yet. Record your first session to get started.</p>
@@ -69,7 +68,6 @@ export default function SessionHistory() {
           ))}
         </div>
 
-        {/* Detail */}
         <div className="detail-pane">
           {selected ? (
             <div className="detail-card" key={selected.id}>
