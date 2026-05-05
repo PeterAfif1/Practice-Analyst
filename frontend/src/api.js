@@ -1,4 +1,5 @@
-const BASE = 'http://localhost:4000';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:4000';
 
 export async function analyzeAudio(audioBlob, userId) {
   const form = new FormData();
@@ -8,7 +9,7 @@ export async function analyzeAudio(audioBlob, userId) {
 
   form.append('userId', userId);
 
-  const res = await fetch(`${BASE}/analyze`, {
+  const res = await fetch(`${API_URL}/analyze`, {
     method: 'POST',
     body: form,
   });
@@ -23,7 +24,7 @@ export async function analyzeAudio(audioBlob, userId) {
 }
 
 export async function fetchHistory(userId) {
-  const res = await fetch(`${BASE}/history/${userId}`);
+  const res = await fetch(`${API_URL}/history/${userId}`);
 
   if (!res.ok) {
     console.error('Failed to load history');
@@ -83,7 +84,7 @@ function _transformRow(row) {
 }
 
 export async function getSessions() {
-  const res = await fetch(`${BASE}/api/sessions`);
+  const res = await fetch(`${API_URL}/api/sessions`);
   if (!res.ok) {
     console.error('getSessions failed:', res.status);
     return [];
@@ -93,7 +94,7 @@ export async function getSessions() {
 }
 
 export async function getSession(id) {
-  const res = await fetch(`${BASE}/api/sessions/${id}`);
+  const res = await fetch(`${API_URL}/api/sessions/${id}`);
   if (!res.ok) {
     console.error(`getSession(${id}) failed:`, res.status);
     return null;
@@ -103,7 +104,7 @@ export async function getSession(id) {
 }
 
 export function connectWebSocket(userId, onResult) {
-  const ws = new WebSocket(`ws://localhost:4000`);
+  const ws = new WebSocket(WS_URL);
 
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: 'register', userId }));
