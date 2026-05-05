@@ -1,0 +1,47 @@
+# Python
+
+.venv/
+**pycache**/
+_.pyc
+_.pyo
+\*.pyd
+
+# ML data and models (regenerated or mounted separately)
+
+ML/data/
+ML/models/
+
+# Node
+
+frontend/node_modules/
+backend/node_modules/
+
+# Frontend (built separately on Vercel)
+
+frontend/
+
+# Uploads
+
+backend/uploads/
+
+# Git
+
+.git/
+.gitignore
+
+# OS junk
+
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Secrets
+
+.env
+backend/.env
+frontend/.env
+
+# Claude tooling
+
+CLAUDE.md
+.claude/
