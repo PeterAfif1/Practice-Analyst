@@ -139,25 +139,15 @@ export function transformMLResult({ prediction, confidence = {}, tempo, avg_conf
 
 export function generateFeedbackFromPrediction(prediction) {
   const map = {
-    correct: [
-      { type: 'pitch',  severity: 'success', title: 'Pitch on target',      detail: 'Your intonation was accurate throughout the session. Keep this up.' },
-      { type: 'rhythm', severity: 'success', title: 'Steady rhythm',         detail: 'Timing was consistent. Your internal pulse is reliable.' },
-    ],
-    flat: [
-      { type: 'pitch',  severity: 'error',   title: 'Playing flat',          detail: 'Notes were consistently below pitch. Try raising your air support and listening critically to each note.' },
-      { type: 'rhythm', severity: 'success', title: 'Rhythm was steady',     detail: 'Good timing despite the pitch issue — focus on intonation next session.' },
-    ],
-    sharp: [
-      { type: 'pitch',  severity: 'error',   title: 'Playing sharp',         detail: 'Notes are slightly above pitch. Relax your embouchure and focus on breath control.' },
-      { type: 'rhythm', severity: 'success', title: 'Rhythm was steady',     detail: 'Timing was solid — direct your attention to pitch accuracy next.' },
-    ],
-    off_rhythm: [
-      { type: 'rhythm', severity: 'error',   title: 'Timing issues detected', detail: 'Significant rhythmic variance found. Practice with a metronome at 70% tempo and build up gradually.' },
-      { type: 'pitch',  severity: 'warning', title: 'Pitch was inconsistent', detail: 'Rushing or dragging can affect intonation. Stabilise your rhythm first, then revisit pitch.' },
-    ],
+    correct:    { severity: 'success', title: 'Steady rhythm',        detail: 'Your timing was consistent throughout.' },
+    off_rhythm: { severity: 'error',   title: 'Timing inconsistency', detail: 'Focus on locking in with a metronome.' },
+    rushed:     { severity: 'warning', title: "You're speeding up",   detail: "Focus on keeping the tempo steady — don't let it drift forward." },
+    dragging:   { severity: 'warning', title: "You're slowing down",  detail: "Push to maintain the tempo — don't let it fall behind." },
   };
 
-  return map[prediction] ?? [
-    { type: 'pitch', severity: 'error', title: 'Unrecognized result', detail: 'The model returned an unrecognized prediction label. No feedback available.' },
-  ];
+  const entry = map[prediction];
+  if (!entry) {
+    return [{ type: 'rhythm', severity: 'error', title: 'Unrecognized result', detail: 'The model returned an unrecognized prediction label.' }];
+  }
+  return [{ type: 'rhythm', ...entry }];
 }
