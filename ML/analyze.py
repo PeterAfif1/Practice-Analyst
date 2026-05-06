@@ -48,6 +48,8 @@ def analyze(audio_file):
 
     try:
         tempo = extract_tempo(audio_file)
+        if tempo > 160:
+            tempo = tempo / 2
     except Exception as e:
         sys.stderr.write(f"warning: tempo extraction failed — {e}\n")
         tempo = None
