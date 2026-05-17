@@ -1,4 +1,4 @@
-# Audio Practice Analyst
+# Backbeat AI
 
 Records microphone audio in the browser, sends it to a Python ML pipeline, and classifies it as `correct`, `flat`, `sharp`, or `off_rhythm`. Results are pushed back to the frontend over WebSocket.
 
